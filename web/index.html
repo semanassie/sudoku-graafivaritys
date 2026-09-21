@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Ratkaise mikä tahansa tavallinen 9×9-sudoku graafivärityksenä. Toista varsinainen haku, mukaan lukien takaisinotto.">
+    <title>Sudoku-graafiväritys - Win98 Edition</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23008080'/%3E%3Crect x='2' y='2' width='12' height='12' fill='%23c0c0c0' stroke='%23000'/%3E%3Crect x='2' y='2' width='12' height='3' fill='%23000080'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div class="desktop" id="desktop">
+    <button type="button" class="desktop-icon selected" id="desktop-icon" title="Sudoku-graafiväritys">
+        <span class="glyph" aria-hidden="true">▦</span>
+        <span class="caption">Sudoku</span>
+    </button>
+
+    <div class="window" id="app-window" role="application" aria-labelledby="title-text">
+        <div class="title-bar">
+            <span class="title-bar-text" id="title-text">▦ Sudoku_Graafivaritys.exe</span>
+            <div class="title-bar-controls">
+                <button type="button" id="btn-min" aria-label="Pienennä ikkuna" title="Pienennä">_</button>
+                <button type="button" disabled aria-hidden="true">□</button>
+                <button type="button" id="btn-close" aria-label="Pienennä ikkuna" title="Sulje">X</button>
+            </div>
+        </div>
+        <div class="window-body">
+            <div class="toolbar" role="toolbar" aria-label="Palapelin ohjaimet">
+                <select id="example" aria-label="Esimerkkipalapeli">
+                    <option value="demo">Videon palapeli</option>
+                    <option value="backtracking">Takaisinottoesimerkki</option>
+                    <option value="empty">Tyhjä ruudukko</option>
+                </select>
+                <button type="button" class="action-btn default-btn" id="solve">Ratkaise</button>
+                <button type="button" class="action-btn" id="cancel" hidden>Peruuta haku</button>
+                <button type="button" class="action-btn" id="reset">Palauta vihjeet</button>
+                <button type="button" class="action-btn" id="clear">Tyhjennä</button>
+                <div class="toolbar-sep" aria-hidden="true"></div>
+                <label><input type="checkbox" id="colors" checked> Värit</label>
+            </div>
+
+            <div class="stage" aria-label="Sudoku ja sen rajoitegraafi">
+                <div class="pane">
+                    <div class="pane-title">01 Palapeli</div>
+                    <div class="board" id="board" aria-label="Muokattava sudokuruudukko"></div>
+                </div>
+                <div class="pane">
+                    <div class="pane-title">02 Sama palapeli graafina</div>
+                    <canvas id="graph" width="1000" height="1000" aria-label="81 kärkeä ja 810 rivin, sarakkeen ja laatikon rajoitetta">Jokainen solu on kärki. Saman rivin, sarakkeen tai 3×3-laatikon solut on yhdistetty särmällä.</canvas>
+                </div>
+            </div>
+
+            <div class="readout" aria-live="polite" aria-atomic="true">
+                <p id="status">Muokkaa vihjeitä ja paina Ratkaise.</p>
+                <p id="detail">Jokainen piste on yksi solu. Yhdistetyillä soluilla on oltava eri väri. Lihavoidut numerot ovat vihjeitä.</p>
+            </div>
+
+            <fieldset>
+                <legend>Haun jälki</legend>
+                <div class="replay-buttons">
+                    <button type="button" class="action-btn" id="play" disabled>Toista jälki</button>
+                    <button type="button" class="action-btn" id="previous" aria-label="Edellinen tapahtuma" disabled>←</button>
+                    <button type="button" class="action-btn" id="next" aria-label="Seuraava tapahtuma" disabled>→</button>
+                    <select id="speed" aria-label="Toistonopeus">
+                        <option value="1">1×</option>
+                        <option value="4">4×</option>
+                        <option value="16">16×</option>
+                        <option value="64">64×</option>
+                    </select>
+                    <button type="button" class="action-btn" id="finish" disabled>Näytä ratkaisu</button>
+                    <button type="button" class="action-btn" id="copy" disabled>Kopioi ratkaisu</button>
+                    <button type="button" class="action-btn" id="download" disabled>Lataa jälki</button>
+                </div>
+                <div class="timeline">
+                    <input id="seek" type="range" min="0" max="1" value="0" aria-label="Haun tapahtuma" disabled>
+                    <output id="step-count" for="seek">0 / 0</output>
+                </div>
+            </fieldset>
+
+            <details>
+                <summary>Liitä palapeli</summary>
+                <div class="paste">
+                    <label for="puzzle-text">81 merkkiä tai yhdeksän riviä. Tyhjä: 0 tai .</label>
+                    <textarea id="puzzle-text" rows="3" spellcheck="false" placeholder="530070000&#10;600195000&#10;…" aria-label="Palapeliteksti"></textarea>
+                    <button type="button" class="action-btn" id="load-text">Lataa palapeli</button>
+                </div>
+            </details>
+
+            <details>
+                <summary>Hakuasetukset</summary>
+                <div class="settings">
+                    <label><input type="checkbox" id="unique" checked> Etsi toinen ratkaisu (yksikäsitteisyys)</label>
+                    <label>Aikaraja
+                        <select id="timeout" aria-label="Haun aikaraja">
+                            <option value="30000">30 sekuntia</option>
+                            <option value="120000">2 minuuttia</option>
+                            <option value="0">Ei aikarajaa</option>
+                        </select>
+                    </label>
+                </div>
+                <p class="hint">Tarkka haku voi kestää vaikeilla syötteillä. Voit perua milloin tahansa. Aikaraja ei ole todiste siitä, että palapeli on mahdoton. Jälkeen tallennetaan enintään 20 000 tapahtumaa; haku jatkuu sen jälkeenkin.</p>
+            </details>
+        </div>
+        <div class="status-bar" role="status">
+            <div class="status-item">81 kärkeä</div>
+            <div class="status-item">810 särmää</div>
+            <div class="status-item">9 väriä</div>
+            <div class="status-item grow" id="stat-valmis">DSATUR-täsmähaku. Ei vastauskantaa.</div>
+        </div>
+    </div>
+</div>
+
+<div class="taskbar">
+    <button type="button" class="start-btn" id="btn-start">▣ Käynnistä</button>
+    <button type="button" class="task-btn active" id="task-btn">Sudoku-graafiväritys</button>
+    <div class="tray" id="clock">00:00</div>
+</div>
+
+<script src="./solver.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>
